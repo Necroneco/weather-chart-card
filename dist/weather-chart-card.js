@@ -783,6 +783,40 @@ const locale = {
     'windy': '바람',
     'windy-variant': '강풍'
   },
+  'zh-Hans': {
+    'tempHi': '最高温度',
+    'tempLo': '最低温度',
+    'precip': '降水量',
+    'feelsLike': '体感温度',
+    'units': {
+      'km/h': 'km/h',
+      'm/s': 'm/s',
+      'mph': 'mph',
+      'Bft': 'Bft',
+      'hPa': 'hPa',
+      'mmHg': 'mm Hg',
+      'mm': 'mm',
+      'in': 'in',
+    },
+    'cardinalDirections': [
+      '北', '北东北', '东北', '东东北', '东', '东东南', '东南', '南东南',
+      '南', '南西南', '西南', '西西南', '西', '西西北', '西北', '北西北', '北'
+    ],
+    'clear-night': '晴夜',
+    'cloudy': '阴',
+    'fog': '雾',
+    'hail': '冰雹',
+    'lightning': '闪电',
+    'lightning-rainy': '雷阵雨',
+    'partlycloudy': '多云',
+    'pouring': '暴雨',
+    'rainy': '雨',
+    'snowy': '雪',
+    'snowy-rainy': '雨夹雪',
+    'sunny': '晴',
+    'windy': '有风',
+    'windy-variant': '有风',
+  },
 };
 
 const cardinalDirectionsIcon = [
@@ -1529,6 +1563,7 @@ class WeatherChartCardEditor extends s {
            <ha-list-item .value=${'sv'}>Swedish</ha-list-item>
 	   <ha-list-item .value=${'uk'}>Ukrainian</ha-list-item>
     	   <ha-list-item .value=${'ko'}>한국어</ha-list-item>
+           <ha-list-item .value=${'zh-Hans'}>简体中文</ha-list-item>
         </ha-select>
         </div>
       </div>
@@ -2264,9 +2299,9 @@ class Color {
 }
 
 /*!
- * Chart.js v4.4.1
+ * Chart.js v4.4.4
  * https://www.chartjs.org
- * (c) 2023 Chart.js Contributors
+ * (c) 2024 Chart.js Contributors
  * Released under the MIT License
  */
 
@@ -2347,11 +2382,7 @@ function each(loopable, fn, thisArg, reverse) {
     let i, len, keys;
     if (isArray(loopable)) {
         len = loopable.length;
-        if (reverse) {
-            for(i = len - 1; i >= 0; i--){
-                fn.call(thisArg, loopable[i], i);
-            }
-        } else {
+        {
             for(i = 0; i < len; i++){
                 fn.call(thisArg, loopable[i], i);
             }
@@ -3441,6 +3472,9 @@ function _longestText(ctx, font, arrayOfThings, cache) {
 /**
  * Clears the entire canvas.
  */ function clearCanvas(canvas, ctx) {
+    if (!ctx && !canvas) {
+        return;
+    }
     ctx = ctx || canvas.getContext('2d');
     ctx.save();
     // canvas.width and canvas.height do not consider the canvas transform,
@@ -3847,7 +3881,6 @@ function _readValueToProps(value, props) {
  * @param info.cacheable - Will be set to `false` if option is not cacheable.
  * @since 2.7.0
  */ function resolve(inputs, context, index, info) {
-    let cacheable = true;
     let i, ilen, value;
     for(i = 0, ilen = inputs.length; i < ilen; ++i){
         value = inputs[i];
@@ -3856,16 +3889,11 @@ function _readValueToProps(value, props) {
         }
         if (context !== undefined && typeof value === 'function') {
             value = value(context);
-            cacheable = false;
         }
         if (index !== undefined && isArray(value)) {
             value = value[index % value.length];
-            cacheable = false;
         }
         if (value !== undefined) {
-            if (info && !cacheable) {
-                info.cacheable = false;
-            }
             return value;
         }
     }
@@ -4043,7 +4071,7 @@ function createContext(parentContext, context) {
 const readKey = (prefix, name)=>prefix ? prefix + _capitalize(name) : name;
 const needsSubResolver = (prop, value)=>isObject(value) && prop !== 'adapters' && (Object.getPrototypeOf(value) === null || value.constructor === Object);
 function _cached(target, prop, resolve) {
-    if (Object.prototype.hasOwnProperty.call(target, prop)) {
+    if (Object.prototype.hasOwnProperty.call(target, prop) || prop === 'constructor') {
         return target[prop];
     }
     const value = resolve();
@@ -4489,7 +4517,7 @@ const useOffsetPos = (x, y, target)=>(x > 0 || y > 0) && (!target || !target.sha
 function getContainerSize(canvas, width, height) {
     let maxWidth, maxHeight;
     if (width === undefined || height === undefined) {
-        const container = _getParentNode(canvas);
+        const container = canvas && _getParentNode(canvas);
         if (!container) {
             width = canvas.clientWidth;
             height = canvas.clientHeight;
@@ -4996,9 +5024,9 @@ function styleChanged(style, prevStyle) {
 }
 
 /*!
- * Chart.js v4.4.1
+ * Chart.js v4.4.4
  * https://www.chartjs.org
- * (c) 2023 Chart.js Contributors
+ * (c) 2024 Chart.js Contributors
  * Released under the MIT License
  */
 
@@ -5447,15 +5475,18 @@ function applyStack(stack, value, dsIndex, options = {}) {
     }
     return value;
 }
-function convertObjectDataToArray(data) {
+function convertObjectDataToArray(data, meta) {
+    const { iScale , vScale  } = meta;
+    const iAxisKey = iScale.axis === 'x' ? 'x' : 'y';
+    const vAxisKey = vScale.axis === 'x' ? 'x' : 'y';
     const keys = Object.keys(data);
     const adata = new Array(keys.length);
     let i, ilen, key;
     for(i = 0, ilen = keys.length; i < ilen; ++i){
         key = keys[i];
         adata[i] = {
-            x: key,
-            y: data[key]
+            [iAxisKey]: key,
+            [vAxisKey]: data[key]
         };
     }
     return adata;
@@ -5647,7 +5678,8 @@ class DatasetController {
         const data = dataset.data || (dataset.data = []);
         const _data = this._data;
         if (isObject(data)) {
-            this._data = convertObjectDataToArray(data);
+            const meta = this._cachedMeta;
+            this._data = convertObjectDataToArray(data, meta);
         } else if (_data !== data) {
             if (_data) {
                 unlistenArrayEvents(_data, this);
@@ -6478,8 +6510,10 @@ class BarController extends DatasetController {
         const metasets = iScale.getMatchingVisibleMetas(this._type).filter((meta)=>meta.controller.options.grouped);
         const stacked = iScale.options.stacked;
         const stacks = [];
+        const currentParsed = this._cachedMeta.controller.getParsed(dataIndex);
+        const iScaleValue = currentParsed && currentParsed[iScale.axis];
         const skipNull = (meta)=>{
-            const parsed = meta.controller.getParsed(dataIndex);
+            const parsed = meta._parsed.find((item)=>item[iScale.axis] === iScaleValue);
             const val = parsed && parsed[meta.vScale.axis];
             if (isNullOrUndef(val) || isNaN(val)) {
                 return true;
@@ -6618,7 +6652,7 @@ class BarController extends DatasetController {
         const ilen = rects.length;
         let i = 0;
         for(; i < ilen; ++i){
-            if (this.getParsed(i)[vScale.axis] !== null) {
+            if (this.getParsed(i)[vScale.axis] !== null && !rects[i].hidden) {
                 rects[i].draw(this._ctx);
             }
         }
@@ -7747,7 +7781,7 @@ function binarySearch(metaset, axis, value, intersect) {
     const rangeMethod = axis === 'x' ? 'inXRange' : 'inYRange';
     let intersectsItem = false;
     evaluateInteractionItems(chart, axis, position, (element, datasetIndex, index)=>{
-        if (element[rangeMethod](position[axis], useFinalPosition)) {
+        if (element[rangeMethod] && element[rangeMethod](position[axis], useFinalPosition)) {
             items.push({
                 element,
                 datasetIndex,
@@ -8246,10 +8280,14 @@ const eventListenerOptions = supportsEventListenerOptions ? {
     passive: true
 } : false;
 function addListener(node, type, listener) {
-    node.addEventListener(type, listener, eventListenerOptions);
+    if (node) {
+        node.addEventListener(type, listener, eventListenerOptions);
+    }
 }
 function removeListener(chart, type, listener) {
-    chart.canvas.removeEventListener(type, listener, eventListenerOptions);
+    if (chart && chart.canvas) {
+        chart.canvas.removeEventListener(type, listener, eventListenerOptions);
+    }
 }
 function fromNativeEvent(event, chart) {
     const type = EVENT_TYPES[event.type] || event.type;
@@ -8442,7 +8480,7 @@ function createProxyAndListen(chart, type, listener) {
         return getMaximumSize(canvas, width, height, aspectRatio);
     }
  isAttached(canvas) {
-        const container = _getParentNode(canvas);
+        const container = canvas && _getParentNode(canvas);
         return !!(container && container.isConnected);
     }
 }
@@ -10501,7 +10539,7 @@ function needContext(proxy, names) {
     return false;
 }
 
-var version = "4.4.1";
+var version = "4.4.4";
 
 const KNOWN_POSITIONS = [
     'top',
@@ -11033,8 +11071,8 @@ class Chart {
         let i;
         if (this._resizeBeforeDraw) {
             const { width , height  } = this._resizeBeforeDraw;
-            this._resize(width, height);
             this._resizeBeforeDraw = null;
+            this._resize(width, height);
         }
         this.clear();
         if (this.width <= 0 || this.height <= 0) {
@@ -11673,7 +11711,8 @@ class ArcElement extends Element {
         ], useFinalPosition);
         const rAdjust = (this.options.spacing + this.options.borderWidth) / 2;
         const _circumference = valueOrDefault(circumference, endAngle - startAngle);
-        const betweenAngles = _circumference >= TAU || _angleBetween(angle, startAngle, endAngle);
+        const nonZeroBetween = _angleBetween(angle, startAngle, endAngle) && startAngle !== endAngle;
+        const betweenAngles = _circumference >= TAU || nonZeroBetween;
         const withinRadius = _isBetween(distance, innerRadius + rAdjust, outerRadius + rAdjust);
         return betweenAngles && withinRadius;
     }
@@ -13882,20 +13921,26 @@ const positioners$1 = {
             return false;
         }
         let i, len;
-        let x = 0;
+        let xSet = new Set();
         let y = 0;
         let count = 0;
         for(i = 0, len = items.length; i < len; ++i){
             const el = items[i].element;
             if (el && el.hasValue()) {
                 const pos = el.tooltipPosition();
-                x += pos.x;
+                xSet.add(pos.x);
                 y += pos.y;
                 ++count;
             }
         }
+        if (count === 0 || xSet.size === 0) {
+            return false;
+        }
+        const xAverage = [
+            ...xSet
+        ].reduce((a, b)=>a + b) / xSet.size;
         return {
-            x: x / count,
+            x: xAverage,
             y: y / count
         };
     },
@@ -15826,7 +15871,7 @@ class RadialLinearScale extends LinearScaleBase {
         }
         if (grid.display) {
             this.ticks.forEach((tick, index)=>{
-                if (index !== 0) {
+                if (index !== 0 || index === 0 && this.min < 0) {
                     offset = this.getDistanceFromCenterForValue(tick.value);
                     const context = this.getContext(index);
                     const optsAtIndex = grid.setContext(context);
@@ -15847,7 +15892,7 @@ class RadialLinearScale extends LinearScaleBase {
                 ctx.strokeStyle = color;
                 ctx.setLineDash(optsAtIndex.borderDash);
                 ctx.lineDashOffset = optsAtIndex.borderDashOffset;
-                offset = this.getDistanceFromCenterForValue(opts.ticks.reverse ? this.min : this.max);
+                offset = this.getDistanceFromCenterForValue(opts.reverse ? this.min : this.max);
                 position = this.getPointPosition(i, offset);
                 ctx.beginPath();
                 ctx.moveTo(this.xCenter, this.yCenter);
@@ -15873,7 +15918,7 @@ class RadialLinearScale extends LinearScaleBase {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         this.ticks.forEach((tick, index)=>{
-            if (index === 0 && !opts.reverse) {
+            if (index === 0 && this.min >= 0 && !opts.reverse) {
                 return;
             }
             const optsAtIndex = tickOpts.setContext(this.getContext(index));
